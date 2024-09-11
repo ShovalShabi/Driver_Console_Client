@@ -3,7 +3,7 @@ import { View, StyleSheet, Dimensions } from "react-native";
 import MapView, { Polyline, Marker } from "react-native-maps";
 import axios from "axios";
 import getEnvVariables from "../etc/loadVariables";
-import { ILocation } from "../utils/Location";
+import { ILocation } from "../utils/ILocation";
 
 const Map = () => {
   const [routeCoords, setRouteCoords] = useState<ILocation[]>([]);
