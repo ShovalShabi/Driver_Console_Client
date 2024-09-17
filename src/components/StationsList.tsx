@@ -1,25 +1,23 @@
+// src/components/StationsList.tsx
 import React from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { StyleSheet, ScrollView } from "react-native";
 import { List, Subheading } from "react-native-paper";
-
-interface Station {
-  name: string;
-  visited: boolean;
-}
+import { IStation } from "../utils/IStation";
 
 interface StationsListProps {
-  stations: Station[];
+  stations: IStation[];
 }
 
 const StationsList: React.FC<StationsListProps> = ({ stations }) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <Subheading style={styles.subheading}>Bus Route</Subheading>
+      <Subheading style={styles.subheading}>Stations</Subheading>
       <List.Section>
         {stations.map((station, index) => (
           <List.Item
             key={index}
-            title={station.name}
+            title={`Station ${index + 1}`}
+            description={station.address}
             style={styles.listItem}
             titleStyle={station.visited ? styles.visitedText : styles.text}
             disabled={station.visited}
@@ -45,6 +43,7 @@ const styles = StyleSheet.create({
   },
   visitedText: {
     color: "grey",
+    textDecorationLine: "line-through",
   },
 });
 
