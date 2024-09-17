@@ -1,178 +1,252 @@
+// src/components/Map.tsx
 import React, { useState, useEffect, useRef } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   Dimensions,
+  Text,
   TouchableOpacity,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
-import MapViewDirections from "react-native-maps-directions";
 import * as Location from "expo-location";
-import axios from "axios";
-import getEnvVariables from "../etc/loadVariables";
 import { ILocation } from "../utils/ILocation";
+import { IStation } from "../utils/IStation";
 import { debounce } from "lodash";
 import Icons from "react-native-vector-icons/MaterialCommunityIcons";
+import getEnvVariables from "../etc/loadVariables";
 import decodePolyline from "../utils/scripts/decodePoly";
+import axios from "axios";
+import getDistanceBetweenPoints from "../utils/scripts/distanceTwoPoints";
 
-const Map = () => {
+interface MapProps {
+  stations: IStation[];
+  onStationVisited: (stationIndex: number) => void;
+}
+
+const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   const [routeCoords, setRouteCoords] = useState<ILocation[]>([]);
   const [currentLocation, setCurrentLocation] = useState<ILocation | null>(
     null
   );
-  const [originCoords, setOriginCoords] = useState<ILocation | null>(null);
-  const [destinationCoords, setDestinationCoords] = useState<ILocation | null>(
-    null
-  );
   const [instructions, setInstructions] = useState<string | null>(null);
-  const [speedLimit, setSpeedLimit] = useState<string | null>(null);
-  const [distanceToTurn, setDistanceToTurn] = useState<number | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] =
     useState(false);
   const [heading, setHeading] = useState(0);
-  const [zoomLevel, setZoomLevel] = useState(17);
-  const [isUserInteracting, setIsUserInteracting] = useState(false); // New state variable
+  const [zoomLevel, setZoomLevel] = useState(17); // Default zoom level
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const [routeSteps, setRouteSteps] = useState<any[]>([]); // Store the route steps
   const mapRef = useRef<MapView | null>(null);
   const { apiGlobalKey } = getEnvVariables();
 
-  const origin = "Shoham St 3-5, Be'er Ya'akov";
-  const destination = "Ofer Kenyoter, Ha-Irusim St 53, Ness Ziona, 7406602";
+  useEffect(() => {
+    requestPermission();
+  }, []);
 
   useEffect(() => {
-    const requestPermission = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === "granted") {
-        setLocationPermissionGranted(true);
-        getInitialLocation();
-      } else {
-        console.error("Location permission denied");
-      }
-    };
+    if (locationPermissionGranted) {
+      getInitialLocation();
+    }
+  }, [locationPermissionGranted]);
 
-    const getInitialLocation = async () => {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.High,
+  useEffect(() => {
+    initializeMap();
+  }, [stations]);
+
+  const requestPermission = async () => {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === "granted") {
+      setLocationPermissionGranted(true);
+    } else {
+      console.error("Location permission denied");
+    }
+  };
+
+  const getInitialLocation = async () => {
+    const location = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    const initialLocation = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
+    setCurrentLocation(initialLocation);
+    setHeading(location.coords.heading || 0);
+    startTracking();
+
+    // Center the map on the user's current location without changing the zoom level
+    if (mapRef.current) {
+      mapRef.current.animateCamera({
+        center: initialLocation,
+        heading: location.coords.heading || 0,
+        zoom: zoomLevel, // Use the retained zoom level
       });
-      setCurrentLocation({
+    }
+  };
+
+  const fetchCoordinates = async (address: string) => {
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+          address
+        )}&key=${apiGlobalKey}`
+      );
+      const location = response.data.results[0]?.geometry.location;
+      if (location) {
+        return {
+          latitude: location.lat,
+          longitude: location.lng,
+        } as ILocation;
+      } else {
+        console.error("No coordinates found for the address");
+      }
+    } catch (error) {
+      console.error("Error fetching coordinates:", error);
+    }
+    return null;
+  };
+
+  const initializeMap = async () => {
+    const stationCoordsPromises = stations.map(async (station) => {
+      if (station.coordinate) {
+        return station.coordinate;
+      } else {
+        const coord = await fetchCoordinates(station.address);
+        station.coordinate = coord; // Update the station with the coordinate
+        return coord;
+      }
+    });
+
+    const stationCoords = (await Promise.all(
+      stationCoordsPromises
+    )) as ILocation[];
+
+    if (stationCoords.length >= 2) {
+      fetchDirections(stationCoords);
+    }
+  };
+
+  const fetchDirections = async (stationCoords: ILocation[]) => {
+    try {
+      const originCoord = stationCoords[0];
+      const destinationCoord = stationCoords[stationCoords.length - 1];
+      const waypoints = stationCoords
+        .slice(1, -1)
+        .map((coord) => `${coord.latitude},${coord.longitude}`)
+        .join("|");
+
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/directions/json?origin=${
+          originCoord.latitude
+        },${originCoord.longitude}&destination=${destinationCoord.latitude},${
+          destinationCoord.longitude
+        }&waypoints=${encodeURIComponent(waypoints)}&key=${apiGlobalKey}`
+      );
+
+      if (response.data.routes.length > 0) {
+        const route = response.data.routes[0];
+        const points = decodePolyline(route.overview_polyline.points);
+        setRouteCoords(points);
+
+        // Set route steps for dynamic instructions
+        const steps = route.legs[0].steps.map((step: any) => ({
+          instructions: step.html_instructions.replace(/<[^>]+>/g, ""), // Clean HTML tags
+          end_location: step.end_location,
+        }));
+        setRouteSteps(steps);
+
+        // Set the first instruction
+        setInstructions(steps[0].instructions);
+      } else {
+        console.error("No routes found");
+      }
+    } catch (error) {
+      console.error("Error fetching directions:", error);
+    }
+  };
+
+  const startTracking = async () => {
+    if (!locationPermissionGranted) return;
+
+    const debouncedUpdate = debounce((location) => {
+      const newCurrentLocation = {
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      });
+      };
+      setCurrentLocation(newCurrentLocation);
       setHeading(location.coords.heading || 0);
-      startTracking();
-    };
 
-    const fetchCoordinates = async (address: string) => {
-      try {
-        const response = await axios.get(
-          `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-            address
-          )}&key=${apiGlobalKey}`
-        );
-        const location = response.data.results[0]?.geometry.location;
-        if (location) {
-          return {
-            latitude: location.lat,
-            longitude: location.lng,
-          };
-        } else {
-          console.error("No coordinates found for the address");
-        }
-      } catch (error) {
-        console.error("Error fetching coordinates:", error);
-      }
-      return null;
-    };
+      const speed = location.coords.speed || 0;
+      const newZoomLevel =
+        speed < 1 ? 20 : speed < 5 ? 19 : speed > 20 ? 14 : 17;
 
-    const fetchDirections = async () => {
-      try {
-        if (originCoords && destinationCoords) {
-          // Making a request for driving directions (regular car)
-          const response = await axios.get(
-            `https://maps.googleapis.com/maps/api/directions/json?origin=${originCoords.latitude},${originCoords.longitude}&destination=${destinationCoords.latitude},${destinationCoords.longitude}&mode=driving&key=${apiGlobalKey}`
-          );
-
-          if (response.data.routes.length > 0) {
-            const route = response.data.routes[0];
-            const points = decodePolyline(route.overview_polyline.points);
-            setRouteCoords(points);
-
-            const leg = route.legs[0];
-            const steps = leg.steps;
-
-            if (steps.length > 0) {
-              const firstStep = steps[0]; // Taking the first step for instructions
-              const newInstructions = firstStep.html_instructions.replace(
-                /<[^>]+>/g,
-                ""
-              );
-              setInstructions(newInstructions);
-              setSpeedLimit(firstStep.speed_limit || null); // Speed limit might be unavailable
-              setDistanceToTurn(firstStep.distance.value);
-            }
-          } else {
-            console.error("No routes found");
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching directions:", error);
-      }
-    };
-
-    const startTracking = async () => {
-      if (!locationPermissionGranted) return;
-
-      const debouncedUpdate = debounce((location) => {
-        setCurrentLocation({
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-        });
-        setHeading(location.coords.heading || 0);
-
-        const speed = location.coords.speed || 0;
-        const newZoomLevel =
-          speed < 1 ? 20 : speed < 5 ? 19 : speed > 20 ? 14 : 17; // Adjust zoom based on speed
-
+      // Ensure zoom level only changes if the user is not interacting with the map
+      if (!isUserInteracting) {
         setZoomLevel(newZoomLevel);
+      }
 
-        // Update the camera only if the user is not interacting with the map
-        if (mapRef.current && !isUserInteracting) {
-          mapRef.current.animateCamera({
-            center: {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            },
-            heading: location.coords.heading || 0,
-            pitch: 60,
-            zoom: newZoomLevel,
-          });
+      // Update the camera only if the user is not interacting with the map
+      if (mapRef.current && !isUserInteracting) {
+        mapRef.current.animateCamera({
+          center: {
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          },
+          heading: location.coords.heading || 0,
+          pitch: 60,
+          zoom: zoomLevel, // Retain the current zoom level
+        });
+      }
+
+      // Check if any station is visited
+      checkIfStationVisited(newCurrentLocation);
+
+      // Update instructions dynamically
+      updateInstructions(newCurrentLocation);
+    }, 1000);
+
+    await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: 5,
+      },
+      (location) => {
+        debouncedUpdate(location);
+      }
+    );
+  };
+
+  const checkIfStationVisited = (currentLoc: ILocation) => {
+    const VISIT_THRESHOLD = 50; // meters
+    stations.forEach((station, index) => {
+      if (!station.visited && station.coordinate) {
+        const distance = getDistanceBetweenPoints(
+          currentLoc,
+          station.coordinate
+        );
+        if (distance < VISIT_THRESHOLD) {
+          onStationVisited(index);
         }
-      }, 1000);
+      }
+    });
+  };
 
-      Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          distanceInterval: 5,
-        },
-        (location) => {
-          debouncedUpdate(location);
-        }
-      );
-    };
+  const updateInstructions = (currentLoc: ILocation) => {
+    const VISIT_THRESHOLD = 50; // Meters to trigger next instruction
+    for (let i = 0; i < routeSteps.length; i++) {
+      const step = routeSteps[i];
+      const stepLocation = step.end_location;
 
-    const initializeMap = async () => {
-      const originGeo = await fetchCoordinates(origin);
-      const destinationGeo = await fetchCoordinates(destination);
+      const distance = getDistanceBetweenPoints(currentLoc, {
+        latitude: stepLocation.lat,
+        longitude: stepLocation.lng,
+      });
 
-      if (originGeo) setOriginCoords(originGeo);
-      if (destinationGeo) setDestinationCoords(destinationGeo);
-
-      if (originGeo && destinationGeo) fetchDirections();
-    };
-
-    requestPermission();
-    initializeMap();
-  }, [origin, destination, locationPermissionGranted]);
+      if (distance < VISIT_THRESHOLD) {
+        setInstructions(step.instructions);
+        break;
+      }
+    }
+  };
 
   const goToMyLocation = () => {
     if (currentLocation && mapRef.current) {
@@ -183,16 +257,13 @@ const Map = () => {
           longitude: currentLocation.longitude,
         },
         heading: heading,
-        pitch: 60,
-        zoom: zoomLevel,
+        zoom: zoomLevel, // Retain the current zoom level without zooming out
       });
-      console.log("The zoom level: ", zoomLevel);
     }
   };
 
-  // Handler when user starts interacting with the map
   const onMapInteraction = () => {
-    setIsUserInteracting(true);
+    setIsUserInteracting(true); // Disable auto zoom when the user interacts with the map
   };
 
   return (
@@ -201,8 +272,8 @@ const Map = () => {
         ref={mapRef}
         style={styles.map}
         initialRegion={{
-          latitude: originCoords?.latitude || 0,
-          longitude: originCoords?.longitude || 0,
+          latitude: currentLocation?.latitude || 0,
+          longitude: currentLocation?.longitude || 0,
           latitudeDelta: 0.0922,
           longitudeDelta: 0.0421,
         }}
@@ -210,21 +281,30 @@ const Map = () => {
         rotateEnabled
         onTouchStart={onMapInteraction}
         onPanDrag={onMapInteraction}
-        onRegionChangeComplete={() => {}}
       >
         {currentLocation && (
           <Marker.Animated
             coordinate={currentLocation}
-            title="Bus Location"
-            identifier="busMarker"
+            title="Current Location"
+            identifier="currentLocationMarker"
           >
             <Icons name="navigation-outline" size={30} color="#000" />
           </Marker.Animated>
         )}
-        {originCoords && <Marker coordinate={originCoords} title="Start" />}
-        {destinationCoords && (
-          <Marker coordinate={destinationCoords} title="End" />
-        )}
+        {stations.map((station, index) => {
+          if (station.coordinate) {
+            return (
+              <Marker
+                key={index}
+                coordinate={station.coordinate}
+                title={`Station ${index + 1}`}
+                description={station.address}
+                pinColor={station.visited ? "gray" : "red"}
+              />
+            );
+          }
+          return null;
+        })}
         {routeCoords.length > 0 && (
           <Polyline
             coordinates={routeCoords}
@@ -232,37 +312,12 @@ const Map = () => {
             strokeColor="blue"
           />
         )}
-        {originCoords && destinationCoords && (
-          <MapViewDirections
-            origin={originCoords}
-            destination={destinationCoords}
-            apikey={apiGlobalKey}
-            strokeWidth={5}
-            strokeColor="blue"
-            optimizeWaypoints
-            onReady={(result) => {
-              if (mapRef.current) {
-                mapRef.current.fitToCoordinates(result.coordinates, {
-                  edgePadding: { right: 50, bottom: 50, left: 50, top: 50 },
-                });
-              }
-            }}
-          />
-        )}
       </MapView>
 
-      {/* Instructions Overlay */}
+      {/* Directions Overlay on Upper Left */}
       {instructions && (
-        <View style={styles.instructionsContainer}>
-          <Text style={styles.text}>Next turn: {instructions}</Text>
-          {distanceToTurn && (
-            <Text style={styles.text}>
-              Distance to turn: {distanceToTurn} meters
-            </Text>
-          )}
-          {speedLimit && (
-            <Text style={styles.text}>Speed Limit: {speedLimit}</Text>
-          )}
+        <View style={styles.directionsContainer}>
+          <Text style={styles.text}>{instructions}</Text>
         </View>
       )}
 
@@ -279,14 +334,14 @@ const styles = StyleSheet.create({
     width: Dimensions.get("window").width,
     height: Dimensions.get("window").height,
   },
-  instructionsContainer: {
+  directionsContainer: {
     position: "absolute",
-    top: 50,
+    top: 10,
     left: 10,
     backgroundColor: "rgba(255, 255, 255, 0.9)",
     padding: 10,
     borderRadius: 10,
-    maxWidth: "30%", // Limits the width to 30% of the screen
+    maxWidth: "40%", // Can use percentage
     minWidth: 100, // Minimum width for readability
   },
   text: {
