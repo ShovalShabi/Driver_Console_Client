@@ -5,11 +5,11 @@ import getEnvVariables from "../etc/loadVariables";
 
 // Custom hook to handle WebSocket communication
 const useWebSocketService = () => {
-  const { webSocketOrderBusURL } = getEnvVariables();
+  const { webSocketOrderBusServiceURL } = getEnvVariables();
   const websocketRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
-    websocketRef.current = new WebSocket(webSocketOrderBusURL);
+    websocketRef.current = new WebSocket(webSocketOrderBusServiceURL);
     console.log(`the web socket:${JSON.stringify(websocketRef.current)}`);
 
     websocketRef.current.onopen = () => {
@@ -33,7 +33,7 @@ const useWebSocketService = () => {
         websocketRef.current.close();
       }
     };
-  }, [webSocketOrderBusURL]);
+  }, [webSocketOrderBusServiceURL]);
 
   const sendLocationUpdate = (
     currentLocation: ILocation,
