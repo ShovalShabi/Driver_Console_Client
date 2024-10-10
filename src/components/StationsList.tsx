@@ -1,4 +1,3 @@
-// src/components/StationsList.tsx
 import React from "react";
 import { StyleSheet, ScrollView } from "react-native";
 import { List, Subheading } from "react-native-paper";
@@ -16,8 +15,8 @@ const StationsList: React.FC<StationsListProps> = ({ stations }) => {
         {stations.map((station, index) => (
           <List.Item
             key={index}
-            title={`Station ${index + 1}`}
-            description={station.address}
+            title={`Station ${station.data?.stopOrder}`}
+            description={station.data?.stationName || "Unknown Station"}
             style={styles.listItem}
             titleStyle={station.visited ? styles.visitedText : styles.text}
             disabled={station.visited}
