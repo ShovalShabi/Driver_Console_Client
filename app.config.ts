@@ -8,13 +8,18 @@ export default {
     android: {
       config: {
         googleMaps: {
-          apiKey: process.env.EXPO_JAVASCRIPT_MAPS_API_KEY, // Dynamically load from .env
+          apiKey: process.env.EXPO_JAVASCRIPT_MAPS_API_KEY,
         },
       },
+      permissions: ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"],
     },
     ios: {
       config: {
-        googleMapsApiKey: process.env.EXPO_JAVASCRIPT_MAPS_API_KEY, // For iOS
+        googleMapsApiKey: process.env.EXPO_JAVASCRIPT_MAPS_API_KEY,
+      },
+      infoPlist: {
+        NSLocationWhenInUseUsageDescription:
+          "This app needs access to your location to show your current position on the map.",
       },
     },
   },
