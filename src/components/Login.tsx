@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { TextInput, Button, Title } from "react-native-paper";
 import authService from "../services/authService";
+import UserDTO from "../dto/UserDTO";
 
 interface LoginProps {
-  onLoginSuccess: (company: string) => void;
+  onLoginSuccess: (user: UserDTO) => void;
   onSwitchToRegister: () => void; // Callback to switch to register mode
 }
 
@@ -19,9 +20,10 @@ const Login: React.FC<LoginProps> = ({
 
   const handleLogin = async () => {
     try {
-      console.log("Logging in the user");
-      await authService.loginUser(company, email, password);
-      onLoginSuccess(company); // Pass company name on success
+      console.log(`Attempt for logging in the user ${email}`);
+      const user = await authService.loginUser(company, email, password);
+      console.log(`The user ${email} logged in successfully!`);
+      onLoginSuccess(user); // Pass company name on success
     } catch (error) {
       console.error("Login failed", error);
       setErrorMessage("Failed to login into the system"); // Set error message

@@ -5,10 +5,11 @@ import orderBusService from "../services/orderBusService";
 import StationResponseDTO from "../dto/StationResponseDTO";
 import Login from "../components/Login";
 import Register from "../components/Register";
+import UserDTO from "../dto/UserDTO";
 
 interface WelcomeScreenProps {
   onStationsFetched: (stations: StationResponseDTO[]) => void;
-  onLoginSuccess: (companyName: string) => void;
+  onLoginSuccess: (user: UserDTO) => void;
 }
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
@@ -16,15 +17,13 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onLoginSuccess,
 }) => {
   const [isRegistered, setIsRegistered] = useState(true); // Toggle between login and registration
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [company, setCompany] = useState("");
+  const [user, setUser] = useState<UserDTO | null>(null);
   const [lineNumber, setLineNumber] = useState("");
   const [startingPoint, setStartingPoint] = useState("");
 
-  const handleLoginSuccess = (companyName: string) => {
-    setCompany(companyName);
-    setIsLoggedIn(true);
-    onLoginSuccess(companyName); // Notify parent component that login was successful
+  const handleLoginSuccess = (user: UserDTO) => {
+    setUser(user);
+    onLoginSuccess(user); // Notify parent component that login was successful
   };
 
   const handleRegisterSuccess = () => {
@@ -34,7 +33,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   const handleGetBusStations = async () => {
     const stationsRequest = {
       lineNumber,
-      agency: company,
+      agency: user!.company,
     };
 
     try {
@@ -49,7 +48,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   };
 
   // Toggle between login and register forms based on state
-  if (!isLoggedIn) {
+  if (!user) {
     return (
       <View style={styles.container}>
         {isRegistered ? (
