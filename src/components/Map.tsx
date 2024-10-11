@@ -6,7 +6,7 @@ import {
   Text,
   TouchableOpacity,
 } from "react-native";
-import MapView, { Marker, Polyline, Camera } from "react-native-maps";
+import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 import { ILocation } from "../utils/ILocation";
 import { IStation } from "../utils/IStation";
@@ -41,12 +41,12 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   ///////////////////////*Alert options *///////////////////////////////
   const { acceptRide, cancelRide } = webSocketService(); // Get WebSocket functions
 
-  useEffect(() => {
-    // Simulate receiving a ride request and trigger the alert
-    setTimeout(() => {
-      showRideRequestAlert(acceptRide, cancelRide);
-    }, 10000); // Show the alert after 10 seconds for demonstration purposes
-  }, []);
+  // useEffect(() => {
+  //   // Simulate receiving a ride request and trigger the alert
+  //   setTimeout(() => {
+  //     showRideRequestAlert(acceptRide, cancelRide);
+  //   }, 10000); // Show the alert after 10 seconds for demonstration purposes
+  // }, []);
   //////////////////////////////////////////////////////
 
   useEffect(() => {
@@ -69,33 +69,47 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   }, [stations]);
 
   const requestPermission = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === "granted") {
-      setLocationPermissionGranted(true);
-    } else {
-      console.error("Location permission denied");
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status === "granted") {
+        setLocationPermissionGranted(true);
+      } else {
+        alert(
+          "Location permission denied. Please enable location services in your settings."
+        );
+        console.error("Location permission denied");
+      }
+    } catch (error) {
+      console.error("Error requesting location permission", error);
     }
   };
 
   const getInitialLocation = async () => {
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High,
-    });
-    const initialLocation = {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    };
-    setCurrentLocation(initialLocation);
-    setHeading(location.coords.heading || 0);
-    startTracking();
-
-    if (mapRef.current) {
-      mapRef.current.animateCamera({
-        center: initialLocation,
-        heading: location.coords.heading || 0,
-        zoom: zoomLevel, // Start with default zoom
-        pitch: 60, // Driver perspective
+    try {
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
       });
+      const initialLocation = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setCurrentLocation(initialLocation);
+      setHeading(location.coords.heading || 0);
+      startTracking();
+
+      if (mapRef.current) {
+        mapRef.current.animateCamera({
+          center: initialLocation,
+          heading: location.coords.heading || 0,
+          zoom: zoomLevel, // Start with default zoom
+          pitch: 60, // Driver perspective
+        });
+      }
+    } catch (error) {
+      console.error("Can't obtain location", error); // Log the error
+      alert(
+        "Unable to fetch current location. Please check your location settings."
+      );
     }
   };
 
@@ -137,42 +151,10 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     );
   };
 
-  const fetchCoordinates = async (address: string) => {
-    try {
-      const response = await axios.get(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          address
-        )}&key=${apiGlobalKey}`
-      );
-      const location = response.data.results[0]?.geometry.location;
-      if (location) {
-        return {
-          latitude: location.lat,
-          longitude: location.lng,
-        } as ILocation;
-      } else {
-        console.error("No coordinates found for the address");
-      }
-    } catch (error) {
-      console.error("Error fetching coordinates:", error);
-    }
-    return null;
-  };
-
   const initializeMap = async () => {
-    const stationCoordsPromises = stations.map(async (station) => {
-      if (station.coordinate) {
-        return station.coordinate;
-      } else {
-        const coord = await fetchCoordinates(station.address);
-        station.coordinate = coord; // Update the station with the coordinate
-        return coord;
-      }
-    });
-
-    const stationCoords = (await Promise.all(
-      stationCoordsPromises
-    )) as ILocation[];
+    const stationCoords = stations
+      .filter((station) => station.data && station.data.location.latLng)
+      .map((station) => station.data!.location.latLng);
 
     if (stationCoords.length >= 2) {
       fetchDirections(stationCoords);
@@ -218,10 +200,10 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   const checkIfStationVisited = (currentLoc: ILocation) => {
     const VISIT_THRESHOLD = 50; // meters
     stations.forEach((station, index) => {
-      if (!station.visited && station.coordinate) {
+      if (!station.visited && station.data?.location.latLng) {
         const distance = getDistanceBetweenPoints(
           currentLoc,
-          station.coordinate
+          station.data.location.latLng
         );
         if (distance < VISIT_THRESHOLD) {
           onStationVisited(index);
@@ -248,19 +230,8 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
-  // Capture manual zoom level changes
-  const handleRegionChangeComplete = (region: any) => {
-    setZoomLevel(region.zoom); // Save the zoom level
-  };
-
   const goToMyLocation = () => {
     if (currentLocation && mapRef.current) {
-      console.log(
-        `Current zoom level=${zoomLevel}, heading=${heading}, location=${JSON.stringify(
-          currentLocation
-        )}`
-      );
-
       mapRef.current.animateCamera({
         center: {
           latitude: currentLocation.latitude,
@@ -268,7 +239,7 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         },
         heading: heading || 10,
         pitch: 60,
-        zoom: zoomLevel, // Use manually tracked zoom level
+        zoom: zoomLevel,
       });
     }
   };
@@ -286,7 +257,6 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         }}
         showsCompass
         rotateEnabled
-        onRegionChangeComplete={handleRegionChangeComplete} // Capture zoom level
       >
         {currentLocation && (
           <Marker.Animated
@@ -298,13 +268,13 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
           </Marker.Animated>
         )}
         {stations.map((station, index) => {
-          if (station.coordinate) {
+          if (station.data?.location.latLng) {
             return (
               <Marker
                 key={index}
-                coordinate={station.coordinate}
-                title={`Station ${index + 1}`}
-                description={station.address}
+                coordinate={station.data.location.latLng}
+                title={`${station.data.stationName}`}
+                description={`Station ${index}`}
                 pinColor={station.visited ? "gray" : "red"}
               />
             );
@@ -331,12 +301,12 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
       </TouchableOpacity>
 
       {/* Example button to trigger the alert manually -TO BE DELETED LATER !!!!!!!*/}
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={styles.locationButton}
         onPress={() => showRideRequestAlert(acceptRide, cancelRide)}
       >
         <Icons name="crosshairs-gps" size={30} color="#fff" />
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </>
   );
 };

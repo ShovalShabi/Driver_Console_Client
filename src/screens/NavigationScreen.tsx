@@ -11,14 +11,15 @@ import Map from "../components/Map";
 import { IStation } from "../utils/IStation";
 import WelcomeScreen from "./WelcomeScreen";
 import StationResponseDTO from "../dto/StationResponseDTO";
+import UserDTO from "../dto/UserDTO";
 
 const NavigationScreen: React.FC = () => {
   const [stations, setStations] = useState<IStation[]>([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Track if the user is logged in
+  const [user, setUser] = useState<UserDTO | null>(null); // Track if the user is logged in
   const [showStationsList, setShowStationsList] = useState(false); // Track if stations are fetched
 
-  const handleLoginSuccess = (companyName: string) => {
-    setIsLoggedIn(true); // Set user as logged in when login is successful
+  const handleLoginSuccess = (user: UserDTO) => {
+    setUser(user); // Set user as logged in when login is successful
   };
 
   const handleStationsFetched = (fetchedStations: StationResponseDTO[]) => {
@@ -45,7 +46,7 @@ const NavigationScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.contentContainer}>
-        {isLoggedIn && showStationsList ? (
+        {user && showStationsList ? (
           // Show the stations list and the map once user is logged in and stations are fetched
           <>
             <View style={styles.stationsList}>
