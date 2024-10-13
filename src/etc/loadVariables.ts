@@ -37,9 +37,9 @@ const getEnvVariables = () => {
     webSocketOrderBusServiceURL = `http://${EXPO_BCAKEND_SERVER_IP}:${EXPO_ORDER_BUS_SRVICE_DEV_PORT}/${EXPO_ORDER_BUS_SRVICE_WS_ENDPOINT}`;
   }
 
-  console.log(
-    `Auth Service ${authServiceURL}\nOrderBus Service ${orderBusServiceURL}\nWeb Socket Endpoint ${webSocketOrderBusServiceURL}`
-  );
+  // console.log(
+  //   `Auth Service ${authServiceURL}\nOrderBus Service ${orderBusServiceURL}\nWeb Socket Endpoint ${webSocketOrderBusServiceURL}`
+  // );
   return {
     port,
     env,
