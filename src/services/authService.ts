@@ -34,20 +34,14 @@ const authService = {
 
   /**
    * Login a user for the specified company.
-   * @param company - The company the user belongs to
    * @param email - The user's email
    * @param password - The user's password
    * @returns The authenticated UserDTO with JWT token (if any)
    */
-  async loginUser(
-    company: string,
-    email: string,
-    password: string
-  ): Promise<UserDTO> {
+  async loginUser(email: string, password: string): Promise<UserDTO> {
     try {
-      console.log(`${authServiceURL}/auth/${company}`);
       const response = await axios.post<UserDTO>(
-        `${authServiceURL}/auth/${company}?email=${email}&password=${password}`,
+        `${authServiceURL}/auth?email=${email}&password=${password}`,
         {
           headers: {
             "Content-Type": "application/json", // Ensure you're sending JSON data
