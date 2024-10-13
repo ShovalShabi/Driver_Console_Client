@@ -1,29 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import { TextInput, Button, Title } from "react-native-paper";
 import authService from "../services/authService";
-import UserDTO from "../dto/UserDTO";
+import { useDispatch } from "react-redux";
+import { loginUser } from "../states/userReducer";
 
 interface LoginProps {
-  onLoginSuccess: (user: UserDTO) => void;
   onSwitchToRegister: () => void; // Callback to switch to register mode
 }
 
-const Login: React.FC<LoginProps> = ({
-  onLoginSuccess,
-  onSwitchToRegister,
-}) => {
-  const [company, setCompany] = useState("");
+const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const dispatch = useDispatch();
 
   const handleLogin = async () => {
     try {
       console.log(`Attempt for logging in the user ${email}`);
-      const user = await authService.loginUser(company, email, password);
+      const user = await authService.loginUser(email, password);
       console.log(`The user ${email} logged in successfully!`);
-      onLoginSuccess(user); // Pass company name on success
+      dispatch(loginUser(user));
     } catch (error) {
       console.error("Login failed", error);
       setErrorMessage("Failed to login into the system"); // Set error message
@@ -36,13 +33,6 @@ const Login: React.FC<LoginProps> = ({
   return (
     <View style={styles.container}>
       <Title>Driver Login</Title>
-      <TextInput
-        label="Company"
-        value={company}
-        onChangeText={setCompany}
-        mode="outlined"
-        style={styles.input}
-      />
       <TextInput
         label="Email"
         value={email}
