@@ -23,8 +23,6 @@ const orderBusService = {
     size: number = 10
   ): Promise<StationResponeDTO[]> {
     try {
-      console.log(`${JSON.stringify(stationsRequestDTO)}`);
-
       const response = await axios.post<StationResponeDTO[]>(
         `${orderBusServiceURL}/bus/stations?startStation=${startStation}&stopStation=${stopStation}&page=${page}&size=${size}`,
         stationsRequestDTO,
