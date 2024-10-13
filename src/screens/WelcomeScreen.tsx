@@ -6,25 +6,24 @@ import StationResponseDTO from "../dto/StationResponseDTO";
 import Login from "../components/Login";
 import Register from "../components/Register";
 import UserDTO from "../dto/UserDTO";
+import { useDispatch, useSelector } from "react-redux";
+import { planRide, resetRide } from "../states/ridePlanningReducer";
+import { RootState } from "../states/store";
 
 interface WelcomeScreenProps {
   onStationsFetched: (stations: StationResponseDTO[]) => void;
-  onLoginSuccess: (user: UserDTO) => void;
 }
 
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
-  onStationsFetched,
-  onLoginSuccess,
-}) => {
+const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStationsFetched }) => {
   const [isRegistered, setIsRegistered] = useState(true); // Toggle between login and registration
-  const [user, setUser] = useState<UserDTO | null>(null);
   const [lineNumber, setLineNumber] = useState("");
   const [startingPoint, setStartingPoint] = useState("");
+  const dispatch = useDispatch();
 
-  const handleLoginSuccess = (user: UserDTO) => {
-    setUser(user);
-    onLoginSuccess(user); // Notify parent component that login was successful
-  };
+  // Access logged-in user from Redux store
+  const user: UserDTO | null = useSelector(
+    (state: RootState) => state.user.user
+  );
 
   const handleRegisterSuccess = () => {
     setIsRegistered(true);
@@ -41,9 +40,11 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         stationsRequest,
         startingPoint
       );
+      dispatch(planRide(stationsRequest)); // Dispatch the ride planning action to Redux store
       onStationsFetched(stations); // Pass fetched stations to the parent component
     } catch (error) {
       console.error("Error fetching bus stations:", error);
+      dispatch(resetRide());
     }
   };
 
@@ -53,7 +54,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
       <View style={styles.container}>
         {isRegistered ? (
           <Login
-            onLoginSuccess={handleLoginSuccess}
             onSwitchToRegister={() => setIsRegistered(false)} // Switch to registration
           />
         ) : (
