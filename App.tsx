@@ -5,6 +5,8 @@ import {
   Provider as PaperProvider,
 } from "react-native-paper";
 import NavigationScreen from "./src/screens/NavigationScreen";
+import { Provider } from "react-redux";
+import store from "./src/states/store";
 
 const App: React.FC = () => {
   const theme = {
@@ -19,9 +21,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <PaperProvider theme={theme}>
-      <NavigationScreen />
-    </PaperProvider>
+    <Provider store={store}>
+      <PaperProvider theme={theme}>
+        <NavigationScreen />
+      </PaperProvider>
+    </Provider>
   );
 };
 
