@@ -15,8 +15,10 @@ import getEnvVariables from "../etc/loadVariables";
 import decodePolyline from "../utils/scripts/decodePoly";
 import axios from "axios";
 import getDistanceBetweenPoints from "../utils/scripts/distanceTwoPoints";
-import webSocketService from "../services/webSocketService";
-import { showRideRequestAlert } from "./Alert";
+import { resetRide } from "../states/ridePlanningReducer";
+import { useDispatch } from "react-redux";
+// import webSocketService from "../services/webSocketService";
+// import { showRideRequestAlert } from "./Alert";
 
 interface MapProps {
   stations: IStation[];
@@ -31,15 +33,22 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   const [instructions, setInstructions] = useState<string | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] =
     useState(false);
-  const [heading, setHeading] = useState(0); // Track the device heading
-  const [zoomLevel, setZoomLevel] = useState(18); // Lock zoom level to 18
-  const [routeSteps, setRouteSteps] = useState<any[]>([]); // Store the route steps
+  const [heading, setHeading] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(18);
+  const [routeSteps, setRouteSteps] = useState<any[]>([]);
+  const [, setDimensions] = useState({
+    width: Dimensions.get("window").width,
+    height: Dimensions.get("window").height,
+  });
+
+  const dispatch = useDispatch();
+
   const mapRef = useRef<MapView | null>(null);
   const { apiGlobalKey } = getEnvVariables();
   let watchLocationSubscription: any = null;
 
   ///////////////////////*Alert options *///////////////////////////////
-  const { acceptRide, cancelRide } = webSocketService(); // Get WebSocket functions
+  // const { acceptRide, cancelRide } = webSocketService(); // Get WebSocket functions
 
   // useEffect(() => {
   //   // Simulate receiving a ride request and trigger the alert
@@ -48,6 +57,25 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   //   }, 10000); // Show the alert after 10 seconds for demonstration purposes
   // }, []);
   //////////////////////////////////////////////////////
+
+  useEffect(() => {
+    console.log("tilt took place in Map");
+    const handleDimensionChange = () => {
+      setDimensions({
+        width: Dimensions.get("window").width,
+        height: Dimensions.get("window").height,
+      });
+    };
+
+    const subscription = Dimensions.addEventListener(
+      "change",
+      handleDimensionChange
+    );
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [Dimensions.get("window")]);
 
   useEffect(() => {
     requestPermission();
@@ -106,7 +134,7 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         });
       }
     } catch (error) {
-      console.error("Can't obtain location", error); // Log the error
+      console.error("Can't obtain location", error);
       alert(
         "Unable to fetch current location. Please check your location settings."
       );
@@ -191,6 +219,7 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         setInstructions(steps[0].instructions);
       } else {
         console.error("No routes found");
+        dispatch(resetRide());
       }
     } catch (error) {
       console.error("Error fetching directions:", error);
@@ -246,59 +275,67 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
 
   return (
     <>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={{
-          latitude: currentLocation?.latitude || 32.063066,
-          longitude: currentLocation?.longitude || 34.83005,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
-        showsCompass
-        rotateEnabled
-      >
-        {currentLocation && (
-          <Marker.Animated
-            coordinate={currentLocation}
-            title="Current Location"
-            identifier="currentLocationMarker"
-          >
-            <Icons name="navigation-outline" size={30} color="#000" />
-          </Marker.Animated>
-        )}
-        {stations.map((station, index) => {
-          if (station.data?.location.latLng) {
-            return (
-              <Marker
-                key={index}
-                coordinate={station.data.location.latLng}
-                title={`${station.data.stationName}`}
-                description={`Station ${index}`}
-                pinColor={station.visited ? "gray" : "red"}
-              />
-            );
-          }
-          return null;
-        })}
-        {routeCoords.length > 0 && (
-          <Polyline
-            coordinates={routeCoords}
-            strokeWidth={5}
-            strokeColor="blue"
-          />
-        )}
-      </MapView>
+      <View style={{ width: "100%", height: "100%" }}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={{
+            latitude: currentLocation?.latitude || 32.063066,
+            longitude: currentLocation?.longitude || 34.83005,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+          }}
+          showsCompass
+          rotateEnabled
+        >
+          {currentLocation && (
+            <Marker.Animated
+              coordinate={currentLocation}
+              title="Current Location"
+              identifier="currentLocationMarker"
+            >
+              <Icons name="navigation-outline" size={30} color="#000" />
+            </Marker.Animated>
+          )}
+          {stations.map((station, index) => {
+            if (station.data?.location.latLng) {
+              return (
+                <Marker
+                  key={index}
+                  coordinate={station.data.location.latLng}
+                  title={`${station.data.stationName}`}
+                  description={`Station ${index}`}
+                  pinColor={station.visited ? "gray" : "red"}
+                />
+              );
+            }
+            return null;
+          })}
+          {routeCoords.length > 0 && (
+            <Polyline
+              coordinates={routeCoords}
+              strokeWidth={5}
+              strokeColor="blue"
+            />
+          )}
+        </MapView>
 
-      {instructions && (
-        <View style={styles.directionsContainer}>
-          <Text style={styles.text}>{instructions}</Text>
-        </View>
-      )}
+        {instructions && (
+          <View style={styles.directionsContainer}>
+            <Text style={styles.text}>{instructions}</Text>
+          </View>
+        )}
 
-      <TouchableOpacity style={styles.locationButton} onPress={goToMyLocation}>
-        <Icons name="crosshairs-gps" size={30} color="#fff" />
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.locationButton,
+            { bottom: 50, right: 20 }, // Use dynamic position relative to the window size
+          ]}
+          onPress={goToMyLocation}
+        >
+          <Icons name="crosshairs-gps" size={30} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
       {/* Example button to trigger the alert manually -TO BE DELETED LATER !!!!!!!*/}
       {/* <TouchableOpacity
@@ -315,6 +352,7 @@ const styles = StyleSheet.create({
   map: {
     width: Dimensions.get("window").width,
     height: Dimensions.get("window").height,
+    flex: 1,
   },
   directionsContainer: {
     position: "absolute",
@@ -332,8 +370,8 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     position: "absolute",
-    bottom: 50,
-    right: 20,
+    // bottom: Dimensions.get("window").height - 50,
+    // right: Dimensions.get("window").width - 20,
     backgroundColor: "#3FA2F6",
     borderRadius: 50,
     padding: 10,
