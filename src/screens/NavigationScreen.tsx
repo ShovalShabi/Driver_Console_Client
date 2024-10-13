@@ -12,15 +12,22 @@ import { IStation } from "../utils/IStation";
 import WelcomeScreen from "./WelcomeScreen";
 import StationResponseDTO from "../dto/StationResponseDTO";
 import UserDTO from "../dto/UserDTO";
+import { RootState } from "../states/store";
+import { useSelector } from "react-redux";
+import StationsRequestDTO from "../dto/StationsRequestDTO";
 
 const NavigationScreen: React.FC = () => {
   const [stations, setStations] = useState<IStation[]>([]);
-  const [user, setUser] = useState<UserDTO | null>(null); // Track if the user is logged in
-  const [showStationsList, setShowStationsList] = useState(false); // Track if stations are fetched
 
-  const handleLoginSuccess = (user: UserDTO) => {
-    setUser(user); // Set user as logged in when login is successful
-  };
+  // Access logged-in user from Redux store
+  const user: UserDTO | null = useSelector(
+    (state: RootState) => state.user.user
+  );
+
+  // Access logged-in user from Redux store
+  const stationsRequest: StationsRequestDTO | null = useSelector(
+    (state: RootState) => state.ridePlanning.stationsRequest
+  );
 
   const handleStationsFetched = (fetchedStations: StationResponseDTO[]) => {
     const formattedStations: IStation[] = fetchedStations.map((station) => ({
@@ -30,7 +37,6 @@ const NavigationScreen: React.FC = () => {
       coordinate: station.location.latLng,
     }));
     setStations(formattedStations);
-    setShowStationsList(true); // Show stations list once stations are fetched
   };
 
   // Function to mark a station as visited
@@ -46,10 +52,10 @@ const NavigationScreen: React.FC = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.contentContainer}>
-        {user && showStationsList ? (
+        {user && stationsRequest ? (
           // Show the stations list and the map once user is logged in and stations are fetched
           <>
-            <View style={styles.stationsList}>
+            <View style={styles.leftPane}>
               <StationsList stations={stations} />
             </View>
             <View style={styles.map}>
@@ -62,9 +68,8 @@ const NavigationScreen: React.FC = () => {
         ) : (
           // Show WelcomeScreen until the user logs in and stations are fetched
           <>
-            <View style={styles.stationsList}>
+            <View style={styles.leftPane}>
               <WelcomeScreen
-                onLoginSuccess={handleLoginSuccess} // Handle login success
                 onStationsFetched={handleStationsFetched} // Handle fetching stations after login
               />
             </View>
@@ -89,7 +94,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
   },
-  stationsList: {
+  leftPane: {
     width: Dimensions.get("window").width * 0.33,
   },
   map: {
