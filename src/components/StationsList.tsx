@@ -1,26 +1,45 @@
 import React from "react";
 import { StyleSheet, ScrollView } from "react-native";
-import { List, Subheading } from "react-native-paper";
+import { List, Subheading, Divider } from "react-native-paper";
 import { IStation } from "../utils/IStation";
+import { RootState } from "../states/store";
+import { useSelector } from "react-redux";
 
-interface StationsListProps {
-  stations: IStation[];
-}
+const StationsList: React.FC = () => {
+  // Access stations from Redux store
+  const stations: IStation[] | null = useSelector(
+    (state: RootState) => state.ridePlanning.stationsResponseArr
+  );
 
-const StationsList: React.FC<StationsListProps> = ({ stations }) => {
   return (
     <ScrollView contentContainerStyle={styles.container}>
       <Subheading style={styles.subheading}>Stations</Subheading>
       <List.Section>
-        {stations.map((station, index) => (
-          <List.Item
-            key={index}
-            title={`Station ${station.data?.stopOrder}`}
-            description={station.data?.stationName || "Unknown Station"}
-            style={styles.listItem}
-            titleStyle={station.visited ? styles.visitedText : styles.text}
-            disabled={station.visited}
-          />
+        {stations!.map((station, index) => (
+          <React.Fragment key={index}>
+            <List.Item
+              title={station.data?.stationName || "Unknown Station"}
+              description={`Station ${station.data?.stopOrder}`}
+              style={styles.listItem}
+              titleStyle={
+                station.visited
+                  ? styles.visitedText // Visited -> line-through text
+                  : station.active
+                  ? styles.text // Active -> black text
+                  : styles.grayText // Not active -> grey text
+              }
+              descriptionStyle={
+                station.visited
+                  ? styles.visitedText // Visited -> line-through text
+                  : station.active
+                  ? styles.text // Active -> black text
+                  : styles.grayText // Not active -> grey text
+              }
+              disabled={station.visited} // Disable the item if it's visited
+            />
+            {index < stations!.length - 1 && <Divider />}
+            {/* Add Divider except after the last item */}
+          </React.Fragment>
         ))}
       </List.Section>
     </ScrollView>
@@ -38,10 +57,13 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   text: {
-    color: "black",
+    color: "black", // Active station -> black text
+  },
+  grayText: {
+    color: "grey", // Inactive station -> grey text
   },
   visitedText: {
-    color: "grey",
+    color: "grey", // Visited station -> grey with line-through
     textDecorationLine: "line-through",
   },
 });
