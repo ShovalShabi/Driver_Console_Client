@@ -2,19 +2,16 @@ import React, { useState } from "react";
 import { View, StyleSheet } from "react-native";
 import { Button, TextInput, Title } from "react-native-paper";
 import orderBusService from "../services/orderBusService";
-import StationResponseDTO from "../dto/StationResponseDTO";
 import Login from "../components/Login";
 import Register from "../components/Register";
 import UserDTO from "../dto/UserDTO";
 import { useDispatch, useSelector } from "react-redux";
 import { planRide, resetRide } from "../states/ridePlanningReducer";
 import { RootState } from "../states/store";
+import { IStation } from "../utils/IStation";
+import StationResponseTDO from "../dto/StationResponseDTO";
 
-interface WelcomeScreenProps {
-  onStationsFetched: (stations: StationResponseDTO[]) => void;
-}
-
-const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStationsFetched }) => {
+const WelcomeScreen: React.FC = () => {
   const [isRegistered, setIsRegistered] = useState(true); // Toggle between login and registration
   const [lineNumber, setLineNumber] = useState("");
   const [startingPoint, setStartingPoint] = useState("");
@@ -36,12 +33,18 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onStationsFetched }) => {
     };
 
     try {
-      const stations = await orderBusService.getBusStations(
-        stationsRequest,
-        startingPoint
-      );
-      dispatch(planRide(stationsRequest)); // Dispatch the ride planning action to Redux store
-      onStationsFetched(stations); // Pass fetched stations to the parent component
+      const stations: StationResponseTDO[] =
+        await orderBusService.getBusStations(stationsRequest, startingPoint);
+
+      const adjustedStations: IStation[] = stations.map((station) => {
+        const iStation: IStation = {
+          visited: false,
+          active: false,
+          data: station,
+        };
+        return iStation;
+      });
+      dispatch(planRide(adjustedStations)); // Dispatch the ride planning action to Redux store
     } catch (error) {
       console.error("Error fetching bus stations:", error);
       dispatch(resetRide());
