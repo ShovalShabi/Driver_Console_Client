@@ -17,6 +17,7 @@ import axios from "axios";
 import getDistanceBetweenPoints from "../utils/scripts/distanceTwoPoints";
 import { resetRide } from "../states/ridePlanningReducer";
 import { useDispatch } from "react-redux";
+import webSocketService from "../services/webSocketService";
 // import webSocketService from "../services/webSocketService";
 // import { showRideRequestAlert } from "./Alert";
 
@@ -45,6 +46,15 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
 
   const mapRef = useRef<MapView | null>(null);
   const { apiGlobalKey } = getEnvVariables();
+
+  // Connect to WebSocket when the component is mounted
+  useEffect(() => {
+    webSocketService.connect(); // Connect to WebSocket server when the component mounts
+    return () => {
+      webSocketService.disconnect(); // Disconnect WebSocket when the component unmounts
+    };
+  }, []); // Empty dependency array ensures this effect runs once when the component mounts and cleans up on unmount
+
   let watchLocationSubscription: any = null;
 
   ///////////////////////*Alert options *///////////////////////////////
