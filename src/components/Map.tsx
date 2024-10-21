@@ -319,7 +319,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
                   coordinate={station.data.location.latLng}
                   title={`${station.data.stationName}`}
                   description={`Station ${index}`}
-                  pinColor={station.visited ? "gray" : "red"}
+                  pinColor={
+                    station.visited ? "gray" : station.active ? "green" : "red"
+                  }
                 />
               );
             }
