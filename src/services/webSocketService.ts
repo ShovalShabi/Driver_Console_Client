@@ -9,6 +9,7 @@ import {
 } from "../components/Alert";
 import store from "../states/store"; // Import the Redux store
 import PassengerWSMessage from "../dto/PassengerWSMessageDTO";
+import compareCoordinatesWithPrecision from "../utils/scripts/compareCoordinateWithPrecision";
 
 const driverWebSocketService = {
   websocket: null as WebSocket | null,
@@ -44,8 +45,6 @@ const driverWebSocketService = {
     this.websocket.onmessage = (event) => {
       const message: PassengerWSMessage = JSON.parse(event.data);
 
-      console.log(`Received message from server:`, message);
-
       if (message.option === WebSocketOptions.REQUEST_BUS) {
         // Show alert with payload when ride is requestet
         this.showRideRequest(message.payload, message.startLocation);
@@ -53,7 +52,14 @@ const driverWebSocketService = {
         // store.getState().ridePlanning.stationsResponseArr || []
       } else if (message.option === WebSocketOptions.CANCELING_RIDE) {
         // Handle ride cancellation
-        this.handleCancelRide(message.startLocation, message.payload);
+        const procedureCancelation = () => {
+          this.handleRideEvent(
+            message.startLocation,
+            WebSocketOptions.CANCELING_RIDE
+          );
+          showRideCancellationAlert(message.payload);
+        };
+        procedureCancelation();
       }
     };
 
@@ -163,34 +169,13 @@ const driverWebSocketService = {
     this.sendMessage(message);
   },
 
-  //This function isrecieved from the passengers
-  handleCancelRide(targetStation: ILocation, payload: string) {
-    const { stationsResponseArr } = store.getState().ridePlanning;
-    const stationIndex = stationsResponseArr?.findIndex(
-      (station) =>
-        station.data?.location.latLng.latitude === targetStation.latitude &&
-        station.data?.location.latLng.longitude === targetStation.longitude
-    );
-
-    if (stationIndex !== undefined && stationIndex >= 0) {
-      store.dispatch({
-        type: "PLAN_RIDE", // Assuming PLAN_RIDE can handle the station update
-        payload: stationsResponseArr?.map((station, index) =>
-          index === stationIndex ? { ...station, active: false } : station
-        ),
-      });
-    }
-
-    // Show a cancellation alert with only the confirm option
-    showRideCancellationAlert(payload);
-  },
-
   handleRideEvent(targetStation: ILocation, option: WebSocketOptions) {
     const { stationsResponseArr } = store.getState().ridePlanning;
-    const stationIndex = stationsResponseArr?.findIndex(
-      (station) =>
-        station.data?.location.latLng.latitude === targetStation.latitude &&
-        station.data?.location.latLng.longitude === targetStation.longitude
+    const stationIndex = stationsResponseArr?.findIndex((station) =>
+      compareCoordinatesWithPrecision(
+        station.data?.location.latLng as ILocation, // The station's latLng from the state
+        targetStation // The target station's latLng
+      )
     );
 
     if (stationIndex !== undefined && stationIndex >= 0) {
