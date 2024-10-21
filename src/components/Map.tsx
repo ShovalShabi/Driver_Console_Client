@@ -16,10 +16,9 @@ import decodePolyline from "../utils/scripts/decodePoly";
 import axios from "axios";
 import getDistanceBetweenPoints from "../utils/scripts/distanceTwoPoints";
 import { resetRide } from "../states/ridePlanningReducer";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import webSocketService from "../services/webSocketService";
-// import webSocketService from "../services/webSocketService";
-// import { showRideRequestAlert } from "./Alert";
+import { RootState } from "../states/store";
 
 interface MapProps {
   stations: IStation[];
@@ -46,6 +45,10 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
 
   const mapRef = useRef<MapView | null>(null);
   const { apiGlobalKey } = getEnvVariables();
+  const userStore = useSelector((state: RootState) => state.user);
+  const ridePlanningStore = useSelector(
+    (state: RootState) => state.ridePlanning
+  );
 
   // Connect to WebSocket when the component is mounted
   useEffect(() => {
@@ -56,17 +59,6 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   }, []); // Empty dependency array ensures this effect runs once when the component mounts and cleans up on unmount
 
   let watchLocationSubscription: any = null;
-
-  ///////////////////////*Alert options *///////////////////////////////
-  // const { acceptRide, cancelRide } = webSocketService(); // Get WebSocket functions
-
-  // useEffect(() => {
-  //   // Simulate receiving a ride request and trigger the alert
-  //   setTimeout(() => {
-  //     showRideRequestAlert(acceptRide, cancelRide);
-  //   }, 10000); // Show the alert after 10 seconds for demonstration purposes
-  // }, []);
-  //////////////////////////////////////////////////////
 
   useEffect(() => {
     console.log("tilt took place in Map");
@@ -89,6 +81,10 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
 
   useEffect(() => {
     requestPermission();
+    webSocketService.connect(); // Connect to WebSocket server when the component mounts
+    return () => {
+      webSocketService.disconnect(); // Disconnect WebSocket when the component unmounts
+    };
   }, []);
 
   useEffect(() => {
@@ -246,6 +242,14 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         );
         if (distance < VISIT_THRESHOLD) {
           onStationVisited(index);
+          // Send update route step message via WebSocket
+          const { agency, lineNumber } = userStore.rideDetails!;
+          webSocketService.updateRouteStep(
+            agency,
+            lineNumber,
+            currentLoc,
+            stations
+          );
         }
       }
     });
@@ -346,14 +350,6 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
           <Icons name="crosshairs-gps" size={30} color="#fff" />
         </TouchableOpacity>
       </View>
-
-      {/* Example button to trigger the alert manually -TO BE DELETED LATER !!!!!!!*/}
-      {/* <TouchableOpacity
-        style={styles.locationButton}
-        onPress={() => showRideRequestAlert(acceptRide, cancelRide)}
-      >
-        <Icons name="crosshairs-gps" size={30} color="#fff" />
-      </TouchableOpacity> */}
     </>
   );
 };
