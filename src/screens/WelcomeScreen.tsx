@@ -10,6 +10,7 @@ import { planRide, resetRide } from "../states/ridePlanningReducer";
 import { RootState } from "../states/store";
 import { IStation } from "../utils/IStation";
 import StationResponseTDO from "../dto/StationResponseDTO";
+import { assignRideDetails, RideDetails } from "../states/userReducer";
 
 const WelcomeScreen: React.FC = () => {
   const [isRegistered, setIsRegistered] = useState(true); // Toggle between login and registration
@@ -27,7 +28,7 @@ const WelcomeScreen: React.FC = () => {
   };
 
   const handleGetBusStations = async () => {
-    const stationsRequest = {
+    const stationsRequest: RideDetails = {
       lineNumber,
       agency: user!.company,
     };
@@ -44,6 +45,7 @@ const WelcomeScreen: React.FC = () => {
         };
         return iStation;
       });
+      dispatch(assignRideDetails(stationsRequest));
       dispatch(planRide(adjustedStations)); // Dispatch the ride planning action to Redux store
     } catch (error) {
       console.error("Error fetching bus stations:", error);
