@@ -21,11 +21,24 @@ import webSocketService from "../services/webSocketService";
 import { RootState } from "../states/store";
 
 interface MapProps {
+  /** Array of station objects to be displayed on the map. */
   stations: IStation[];
+  /** Callback triggered when a station is visited. */
   onStationVisited: (stationIndex: number) => void;
 }
 
+/**
+ * Map component displaying the driver's current location and route.
+ *
+ * It uses `react-native-maps` to display the map with stations and routes.
+ * It also integrates WebSocket communication for real-time route updates.
+ *
+ * @component
+ * @param {MapProps} props - Props for rendering the map and handling station visits.
+ * @returns {React.ReactElement} The rendered Map component.
+ */
 const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
+  // Local state variables for managing route, location, and instructions
   const [routeCoords, setRouteCoords] = useState<ILocation[]>([]);
   const [currentLocation, setCurrentLocation] = useState<ILocation | null>(
     null
@@ -42,13 +55,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   });
 
   const dispatch = useDispatch();
-
   const mapRef = useRef<MapView | null>(null);
   const { apiGlobalKey } = getEnvVariables();
   const userStore = useSelector((state: RootState) => state.user);
-  const ridePlanningStore = useSelector(
-    (state: RootState) => state.ridePlanning
-  );
 
   // Connect to WebSocket when the component is mounted
   useEffect(() => {
@@ -56,12 +65,12 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     return () => {
       webSocketService.disconnect(); // Disconnect WebSocket when the component unmounts
     };
-  }, []); // Empty dependency array ensures this effect runs once when the component mounts and cleans up on unmount
+  }, []);
 
   let watchLocationSubscription: any = null;
 
+  // Handle screen orientation and dimension changes
   useEffect(() => {
-    console.log("tilt took place in Map");
     const handleDimensionChange = () => {
       setDimensions({
         width: Dimensions.get("window").width,
@@ -73,12 +82,12 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
       "change",
       handleDimensionChange
     );
-
     return () => {
       subscription?.remove();
     };
-  }, [Dimensions.get("window")]);
+  }, []);
 
+  // Request location permissions and initialize map on load
   useEffect(() => {
     requestPermission();
     webSocketService.connect(); // Connect to WebSocket server when the component mounts
@@ -87,12 +96,14 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     };
   }, []);
 
+  // Handle location permission granted event
   useEffect(() => {
     if (locationPermissionGranted) {
       getInitialLocation();
     }
   }, [locationPermissionGranted]);
 
+  // Initialize the map when stations change
   useEffect(() => {
     initializeMap();
     return () => {
@@ -102,6 +113,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     };
   }, [stations]);
 
+  /**
+   * Requests permission to access location services.
+   */
   const requestPermission = async () => {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -118,6 +132,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
+  /**
+   * Retrieves the initial location of the user and starts location tracking.
+   */
   const getInitialLocation = async () => {
     try {
       const location = await Location.getCurrentPositionAsync({
@@ -135,8 +152,8 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         mapRef.current.animateCamera({
           center: initialLocation,
           heading: location.coords.heading || 0,
-          zoom: zoomLevel, // Start with default zoom
-          pitch: 60, // Driver perspective
+          zoom: zoomLevel,
+          pitch: 60,
         });
       }
     } catch (error) {
@@ -147,6 +164,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
+  /**
+   * Starts tracking the user's location and updates the map in real-time.
+   */
   const startTracking = async () => {
     if (!locationPermissionGranted) return;
 
@@ -185,6 +205,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     );
   };
 
+  /**
+   * Initializes the map with the given stations.
+   */
   const initializeMap = async () => {
     const stationCoords = stations
       .filter((station) => station.data && station.data.location.latLng)
@@ -195,6 +218,11 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
+  /**
+   * Fetches directions from Google Maps API and decodes the polyline.
+   *
+   * @param {ILocation[]} stationCoords - Coordinates of the stations.
+   */
   const fetchDirections = async (stationCoords: ILocation[]) => {
     try {
       const originCoord = stationCoords[0];
@@ -232,6 +260,11 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
+  /**
+   * Checks if the current location is close enough to mark a station as visited.
+   *
+   * @param {ILocation} currentLoc - The current location of the user.
+   */
   const checkIfStationVisited = (currentLoc: ILocation) => {
     const VISIT_THRESHOLD = 50; // meters
     stations.forEach((station, index) => {
@@ -242,6 +275,7 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
         );
         if (distance < VISIT_THRESHOLD) {
           onStationVisited(index);
+
           // Send update route step message via WebSocket
           const { agency, lineNumber } = userStore.rideDetails!;
           webSocketService.updateRouteStep(
@@ -255,6 +289,11 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     });
   };
 
+  /**
+   * Updates the driving instructions based on the current location.
+   *
+   * @param {ILocation} currentLoc - The current location of the user.
+   */
   const updateInstructions = (currentLoc: ILocation) => {
     const VISIT_THRESHOLD = 50; // Meters to trigger next instruction
     for (let i = 0; i < routeSteps.length; i++) {
@@ -273,6 +312,9 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
     }
   };
 
+  /**
+   * Centers the map on the current location.
+   */
   const goToMyLocation = () => {
     if (currentLocation && mapRef.current) {
       mapRef.current.animateCamera({
@@ -356,6 +398,7 @@ const Map: React.FC<MapProps> = ({ stations, onStationVisited }) => {
   );
 };
 
+// Styles for the Map component
 const styles = StyleSheet.create({
   map: {
     width: Dimensions.get("window").width,
@@ -378,8 +421,6 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     position: "absolute",
-    // bottom: Dimensions.get("window").height - 50,
-    // right: Dimensions.get("window").width - 20,
     backgroundColor: "#3FA2F6",
     borderRadius: 50,
     padding: 10,

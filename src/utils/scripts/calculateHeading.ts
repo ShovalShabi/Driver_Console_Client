@@ -1,9 +1,19 @@
 import { ILocation } from "../ILocation";
 
+/**
+ * Calculates the heading (bearing) between two geographical locations.
+ *
+ * The heading is the direction from the `previousLocation` to the `currentLocation`
+ * in degrees, normalized to a range of 0 to 360 degrees.
+ *
+ * @param {ILocation} previousLocation - The starting location.
+ * @param {ILocation} currentLocation - The destination location.
+ * @returns {number} The calculated heading in degrees.
+ */
 const calculateHeading = (
   previousLocation: ILocation,
   currentLocation: ILocation
-) => {
+): number => {
   const lat1 = previousLocation.latitude * (Math.PI / 180);
   const lon1 = previousLocation.longitude * (Math.PI / 180);
   const lat2 = currentLocation.latitude * (Math.PI / 180);

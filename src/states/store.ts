@@ -9,7 +9,12 @@ const rootReducer = combineReducers({
   ridePlanning: ridePlanningReducer,
 });
 
-// RootState type
+/**
+ * Type representing the root state of the application.
+ * It is inferred from the combined reducers, including `user` and `ridePlanning`.
+ *
+ * @typedef {ReturnType<typeof rootReducer>} RootState
+ */
 export type RootState = ReturnType<typeof rootReducer>;
 
 // Create store with Redux Toolkit's configureStore

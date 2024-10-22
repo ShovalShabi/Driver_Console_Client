@@ -12,6 +12,14 @@ import { IStation } from "../utils/IStation";
 import StationResponseTDO from "../dto/StationResponseDTO";
 import { assignRideDetails, RideDetails } from "../states/userReducer";
 
+/**
+ * WelcomeScreen component for displaying login/registration forms and ride details.
+ *
+ * It allows the user to log in or register and, upon login, input the line number and starting point to fetch bus stations.
+ *
+ * @component
+ * @returns {React.ReactElement} The rendered WelcomeScreen component.
+ */
 const WelcomeScreen: React.FC = () => {
   const [isRegistered, setIsRegistered] = useState(true); // Toggle between login and registration
   const [lineNumber, setLineNumber] = useState("");
@@ -23,10 +31,17 @@ const WelcomeScreen: React.FC = () => {
     (state: RootState) => state.user.user
   );
 
+  /**
+   * Handles the successful registration event and switches to login form.
+   */
   const handleRegisterSuccess = () => {
     setIsRegistered(true);
   };
 
+  /**
+   * Fetches bus stations based on the line number and starting point provided by the user.
+   * Dispatches the stations and ride details to the Redux store.
+   */
   const handleGetBusStations = async () => {
     const stationsRequest: RideDetails = {
       lineNumber,
@@ -99,6 +114,7 @@ const WelcomeScreen: React.FC = () => {
   );
 };
 
+// Styles for the WelcomeScreen component
 const styles = StyleSheet.create({
   container: {
     flex: 1,

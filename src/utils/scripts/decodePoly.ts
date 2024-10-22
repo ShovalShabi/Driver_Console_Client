@@ -1,4 +1,16 @@
-const decodePolyline = (encoded: string) => {
+/**
+ * Decodes a Google Maps encoded polyline string into an array of geographical coordinates.
+ *
+ * The polyline encoding is a lossy compression algorithm that allows latitude and longitude
+ * values to be represented in a compressed format. This function decodes the polyline string
+ * and returns an array of points with `latitude` and `longitude`.
+ *
+ * @param {string} encoded - The encoded polyline string.
+ * @returns {Array<{latitude: number, longitude: number}>} An array of points with latitude and longitude.
+ */
+const decodePolyline = (
+  encoded: string
+): Array<{ latitude: number; longitude: number }> => {
   let points = [];
   let index = 0,
     lat = 0,

@@ -20,6 +20,10 @@ const driverWebSocketService = {
   reconnectTimeoutId: null as NodeJS.Timeout | null,
   shouldReconnect: true,
 
+  /**
+   * Connects to the WebSocket server.
+   * Reconnects if the connection fails or is closed.
+   */
   connect() {
     if (
       this.websocket &&
@@ -34,7 +38,6 @@ const driverWebSocketService = {
       `Connecting to WebSocket -> ${this.webSocketOrderBusServiceURL}`
     );
     this.websocket = new WebSocket(this.webSocketOrderBusServiceURL);
-
     this.shouldReconnect = true;
 
     this.websocket.onopen = () => {
@@ -46,12 +49,8 @@ const driverWebSocketService = {
       const message: PassengerWSMessage = JSON.parse(event.data);
 
       if (message.option === WebSocketOptions.REQUEST_BUS) {
-        // Show alert with payload when ride is requestet
         this.showRideRequest(message.payload, message.startLocation);
-
-        // store.getState().ridePlanning.stationsResponseArr || []
       } else if (message.option === WebSocketOptions.CANCELING_RIDE) {
-        // Handle ride cancellation
         const procedureCancelation = () => {
           this.handleRideEvent(
             message.startLocation,
@@ -77,6 +76,9 @@ const driverWebSocketService = {
     };
   },
 
+  /**
+   * Disconnects from the WebSocket server and stops any ongoing updates.
+   */
   disconnect() {
     if (this.websocket) {
       this.shouldReconnect = false;
@@ -93,6 +95,10 @@ const driverWebSocketService = {
     }
   },
 
+  /**
+   * Sends a message to the WebSocket server.
+   * @param {DriverWSMessage} message - The WebSocket message to send.
+   */
   sendMessage(message: DriverWSMessage) {
     if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
       console.error("WebSocket is not open. Cannot send message");
@@ -101,20 +107,20 @@ const driverWebSocketService = {
     this.websocket.send(JSON.stringify(message));
   },
 
-  acceptRide(
-    targetStation: ILocation // the target station to approve the ride to
-  ) {
+  /**
+   * Handles accepting a ride request and sends a message to the server.
+   * @param {ILocation} targetStation - The target station for the ride.
+   */
+  acceptRide(targetStation: ILocation) {
     const { rideDetails } = store.getState().user;
     const { ridePlanning } = store.getState();
 
-    // Check if rideDetails is null
     if (!rideDetails || !ridePlanning) {
-      console.error("No ride details or ride planing is available.");
+      console.error("No ride details or ride planning is available.");
       return;
     }
 
     const { stationsResponseArr } = ridePlanning;
-
     const { agency, lineNumber } = rideDetails;
 
     const message: DriverWSMessage = {
@@ -128,19 +134,22 @@ const driverWebSocketService = {
     this.sendMessage(message);
   },
 
+  /**
+   * Handles canceling a ride request and sends a message to the server.
+   * @param {ILocation} targetStation - The target station for the canceled ride.
+   */
   cancelRide(targetStation: ILocation) {
     const { rideDetails } = store.getState().user;
     const { ridePlanning } = store.getState();
 
-    // Check if rideDetails is null
     if (!rideDetails || !ridePlanning) {
-      console.error("No ride details or ride planing is available.");
+      console.error("No ride details or ride planning is available.");
       return;
     }
 
     const { stationsResponseArr } = ridePlanning;
-
     const { agency, lineNumber } = rideDetails;
+
     const message: DriverWSMessage = {
       agency,
       lineNumber,
@@ -152,6 +161,13 @@ const driverWebSocketService = {
     this.sendMessage(message);
   },
 
+  /**
+   * Updates the route step with the driver's current location.
+   * @param {string} agency - The bus agency.
+   * @param {string} lineNumber - The bus line number.
+   * @param {ILocation | null} currentLocation - The driver's current location.
+   * @param {IStation[]} listenersStations - The stations being tracked for updates.
+   */
   updateRouteStep(
     agency: string,
     lineNumber: string,
@@ -169,30 +185,34 @@ const driverWebSocketService = {
     this.sendMessage(message);
   },
 
+  /**
+   * Handles ride event updates (accept or cancel).
+   * @param {ILocation} targetStation - The target station for the ride.
+   * @param {WebSocketOptions} option - The WebSocket option for the event (e.g., accept or cancel).
+   */
   handleRideEvent(targetStation: ILocation, option: WebSocketOptions) {
     const { stationsResponseArr } = store.getState().ridePlanning;
     const stationIndex = stationsResponseArr?.findIndex((station) =>
       compareCoordinatesWithPrecision(
-        station.data?.location.latLng as ILocation, // The station's latLng from the state
-        targetStation // The target station's latLng
+        station.data?.location.latLng as ILocation,
+        targetStation
       )
     );
 
     if (stationIndex !== undefined && stationIndex >= 0) {
       store.dispatch({
-        type: "PLAN_RIDE", // Assuming PLAN_RIDE can handle the station update
+        type: "PLAN_RIDE",
         payload: stationsResponseArr?.map((station, index) =>
           index === stationIndex
             ? {
                 ...station,
-                active: option === WebSocketOptions.ACCEPTING_RIDE, // true if option is to accept ride otherwise it is meant for cancellation
+                active: option === WebSocketOptions.ACCEPTING_RIDE,
               }
             : station
         ),
       });
     }
 
-    // Show a cancellation alert with only the confirm option
     if (option === WebSocketOptions.ACCEPTING_RIDE) {
       this.acceptRide(targetStation);
     } else {
@@ -200,17 +220,25 @@ const driverWebSocketService = {
     }
   },
 
+  /**
+   * Shows a ride request alert to the driver.
+   * @param {string} payload - The message payload from the backend.
+   * @param {ILocation} targetStation - The target station for the ride.
+   */
   showRideRequest(payload: string, targetStation: ILocation) {
     showRideRequestAlert(
       payload,
       (targetStation) =>
-        this.handleRideEvent(targetStation, WebSocketOptions.ACCEPTING_RIDE), // Accepting ride
+        this.handleRideEvent(targetStation, WebSocketOptions.ACCEPTING_RIDE),
       (targetStation) =>
-        this.handleRideEvent(targetStation, WebSocketOptions.CANCELING_RIDE), // Canceling ride
+        this.handleRideEvent(targetStation, WebSocketOptions.CANCELING_RIDE),
       targetStation
     );
   },
 
+  /**
+   * Schedules a WebSocket reconnection attempt.
+   */
   scheduleReconnect() {
     console.log(
       `Attempting to reconnect in ${this.reconnectInterval / 1000} seconds...`
@@ -220,6 +248,9 @@ const driverWebSocketService = {
     }, this.reconnectInterval);
   },
 
+  /**
+   * Starts sending route step updates at regular intervals.
+   */
   startRouteStepUpdate() {
     console.log("sending route step status");
     this.updateTimeoutId = setInterval(() => {
@@ -239,7 +270,9 @@ const driverWebSocketService = {
     }, this.updateInterval);
   },
 
-  // Stop sending route steps
+  /**
+   * Stops sending route step updates.
+   */
   stopRouteStepUpdate() {
     if (this.updateTimeoutId) {
       clearInterval(this.updateTimeoutId);

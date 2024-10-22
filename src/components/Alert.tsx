@@ -1,7 +1,14 @@
 import { Alert } from "react-native";
 import { ILocation } from "../utils/ILocation";
 
-// Function to show an alert when a ride request is received
+/**
+ * Function to show an alert when a ride request is received.
+ *
+ * @param {string} payload - Message payload from the backend describing the ride request.
+ * @param {function} acceptRide - Callback function to accept the ride request, passing the target station's location.
+ * @param {function} cancelRide - Callback function to cancel the ride request, passing the target station's location.
+ * @param {ILocation} targetStation - The location of the target station for the ride request.
+ */
 export const showRideRequestAlert = (
   payload: string, // Message payload from the backend
   acceptRide: (targetStation: ILocation) => void,
@@ -26,7 +33,11 @@ export const showRideRequestAlert = (
   );
 };
 
-// Function to show an alert when a ride is canceled
+/**
+ * Function to show an alert when a ride is canceled.
+ *
+ * @param {string} payload - Message payload from the backend explaining the ride cancellation.
+ */
 export const showRideCancellationAlert = (payload: string) => {
   Alert.alert(
     "Ride Canceled",

@@ -5,6 +5,15 @@ import { IStation } from "../utils/IStation";
 import { RootState } from "../states/store";
 import { useSelector } from "react-redux";
 
+/**
+ * StationsList component displays a scrollable list of stations.
+ *
+ * It retrieves the stations from the Redux store and displays each station with
+ * a title and description. Visited, active, and inactive stations are styled differently.
+ *
+ * @component
+ * @returns {React.ReactElement} The rendered StationsList component.
+ */
 const StationsList: React.FC = () => {
   // Access stations from Redux store
   const stations: IStation[] | null = useSelector(
@@ -46,6 +55,7 @@ const StationsList: React.FC = () => {
   );
 };
 
+// Styles for the StationsList component
 const styles = StyleSheet.create({
   container: {
     padding: 16,

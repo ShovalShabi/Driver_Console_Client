@@ -8,9 +8,14 @@ const { authServiceURL } = getEnvVariables();
 const authService = {
   /**
    * Register a new user for the specified company.
-   * @param company - The company to register the user for
-   * @param userDTO - The user registration details
-   * @returns The registered UserDTO
+   *
+   * Sends a request to register a new user with the role of `DRIVER` to the authentication service.
+   *
+   * @async
+   * @param {string} company - The company to register the user for.
+   * @param {UserDTO} userDTO - The user registration details, including name, email, and password.
+   * @returns {Promise<UserDTO>} The registered UserDTO object.
+   * @throws {Error} Throws an error if the registration fails.
    */
   async registerUser(company: string, userDTO: UserDTO): Promise<UserDTO> {
     try {
@@ -34,9 +39,14 @@ const authService = {
 
   /**
    * Login a user for the specified company.
-   * @param email - The user's email
-   * @param password - The user's password
-   * @returns The authenticated UserDTO with JWT token (if any)
+   *
+   * Sends a login request to authenticate the user with the provided email and password.
+   *
+   * @async
+   * @param {string} email - The user's email address.
+   * @param {string} password - The user's password.
+   * @returns {Promise<UserDTO>} The authenticated UserDTO object, possibly containing a JWT token.
+   * @throws {Error} Throws an error if the login fails.
    */
   async loginUser(email: string, password: string): Promise<UserDTO> {
     try {
