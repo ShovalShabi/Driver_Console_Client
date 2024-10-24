@@ -2,8 +2,8 @@ import {
   EXPO_PORT,
   EXPO_ENV,
   EXPO_JAVASCRIPT_MAPS_API_KEY,
-  EXPO_BCAKEND_SERVER_IP,
-  EXPO_BCAKEND_SERVER_PORT,
+  EXPO_BACKEND_SERVER_IP,
+  EXPO_BACKEND_SERVER_PORT,
   EXPO_ORDER_BUS_SRVICE_ENDPOINT,
   EXPO_AUTH_SRVICE_ENDPOINT,
   EXPO_ORDER_BUS_SRVICE_WS_ENDPOINT,
@@ -30,17 +30,24 @@ const getEnvVariables = () => {
 
   const apiGlobalKey = EXPO_JAVASCRIPT_MAPS_API_KEY || "";
 
+  let protocolHttp = "http";
+  let backendPort = EXPO_BACKEND_SERVER_PORT;
+  let webSocketProtocol = "ws";
+
   if (env === "dev") {
     port = parseInt(EXPO_PORT || "6002", 10); // Default to 6002 if EXPO_PORT is not defined
   } else if (env === "prod") {
     port = parseInt(EXPO_PORT || "7002", 10); // Default to 7002 if EXPO_PORT is not defined
+    protocolHttp = "https";
+    backendPort = "80";
+    webSocketProtocol = "wss";
   } else {
     // Testing the application, using the services in dev mode, port will remain 0
   }
 
-  const orderBusServiceURL = `http://${EXPO_BCAKEND_SERVER_IP}:${EXPO_BCAKEND_SERVER_PORT}/${EXPO_ORDER_BUS_SRVICE_ENDPOINT}`;
-  const authServiceURL = `http://${EXPO_BCAKEND_SERVER_IP}:${EXPO_BCAKEND_SERVER_PORT}/${EXPO_AUTH_SRVICE_ENDPOINT}`;
-  const webSocketOrderBusServiceURL = `ws://${EXPO_BCAKEND_SERVER_IP}:${EXPO_BCAKEND_SERVER_PORT}/${EXPO_ORDER_BUS_SRVICE_WS_ENDPOINT}`;
+  const orderBusServiceURL = `${protocolHttp}://${EXPO_BACKEND_SERVER_IP}:${backendPort}/${EXPO_ORDER_BUS_SRVICE_ENDPOINT}`;
+  const authServiceURL = `${protocolHttp}://${EXPO_BACKEND_SERVER_IP}:${backendPort}/${EXPO_AUTH_SRVICE_ENDPOINT}`;
+  const webSocketOrderBusServiceURL = `${webSocketProtocol}://${EXPO_BACKEND_SERVER_IP}:${backendPort}/${EXPO_ORDER_BUS_SRVICE_WS_ENDPOINT}`;
 
   return {
     port,

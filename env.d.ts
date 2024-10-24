@@ -28,13 +28,13 @@ declare module "@env" {
    * The backend server IP address.
    * @type {string}
    */
-  export const EXPO_BCAKEND_SERVER_IP: string;
+  export const EXPO_BACKEND_SERVER_IP: string;
 
   /**
    * The backend server port number.
    * @type {string}
    */
-  export const EXPO_BCAKEND_SERVER_PORT: string;
+  export const EXPO_BACKEND_SERVER_PORT: string;
 
   /**
    * The API endpoint for the Order Bus service.
